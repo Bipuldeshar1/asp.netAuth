@@ -2,16 +2,21 @@
 using Asp.netAuth.Models.viewModel;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics;
+using WebApplication1.Controllers;
 
 namespace Asp.netAuth.Controllers
 {
     public class AccountController : Controller
     {
         private readonly SignInManager<Appuser> signInManager;
+        private readonly UserManager<Appuser> userManager;
 
-        public AccountController( SignInManager<Appuser>signInManager)
+        public AccountController( SignInManager<Appuser>signInManager,UserManager<Appuser> userManager
+            )
         {
             this.signInManager = signInManager;
+            this.userManager = userManager;
         }
         public IActionResult Login()
         {
@@ -37,9 +42,48 @@ namespace Asp.netAuth.Controllers
         {
             return View();
         }
-        public IActionResult logout()
+        [HttpPost]
+        public async Task<IActionResult> Register(Registervm model)
+     
         {
+            if (ModelState.IsValid)
+            {
+               
+                Appuser user = new Appuser() { 
+                    Name=model.Name,
+                    UserName=model.Email,
+                    Email=model.Email,
+                    Address=model.Address
+                };
+                try
+                {
+                    var result = await userManager.CreateAsync(user, model.Password!);
+                    if (result.Succeeded)
+                    {
+                        await signInManager.SignInAsync(user, false);
+                        return RedirectToAction("index", "Home");
+                    }
+                    foreach (var error in result.Errors)
+                    {
+                        Debug.WriteLine(error.Description);
+                        ModelState.AddModelError("", error.Description);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log or handle the exception appropriately
+                    Debug.WriteLine($"An error occurred during user creation: {ex.Message}");
+                    ModelState.AddModelError("", "An error occurred during user creation.");
+                }
+
+            }
+
             return View();
+        }
+        public async Task<IActionResult> logout()
+        {
+            await signInManager.SignOutAsync();
+            return RedirectToAction(nameof(HomeController.Index));
         }
     }
 }
